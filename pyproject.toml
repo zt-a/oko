@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oko-py"
+version = "0.1.0"
+description = "Simple, zero-config error tracking for Python"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "OKO Team"}]
+
+# Минимум зависимостей — только то что нельзя заменить stdlib
+dependencies = [
+    "httpx>=0.24.0",   # Telegram notifications (async HTTP)
+    "jinja2>=3.1.0",   # Dashboard templates
+]
+
+[project.optional-dependencies]
+# Фреймворки — пользователь ставит сам, oko их не тащит
+fastapi   = ["fastapi>=0.95.0"]
+flask     = ["flask>=2.0.0"]
+django    = ["django>=4.0.0"]
+loguru    = ["loguru>=0.7.0"]
+
+# Все фреймворки сразу (для разработки)
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "fastapi>=0.95.0",
+    "flask>=2.0.0",
+    "httpx>=0.24.0",
+    "loguru>=0.7.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["oko*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
