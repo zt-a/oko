@@ -65,57 +65,61 @@ class TelegramConnector(BaseConnector):
     # ------------------------------------------------------------------
 
     def _format(self, event: OkoEvent) -> str:
-        """Сформировать текст сообщения для Telegram."""
-        lines = ["👁 *OKO Alert*", ""]
+        """Сформировать красиво отформатированное сообщение для Telegram."""
+        # Заголовок с типом события
+        header = f"👁 *OKO ALERT*"
+        if event.context.get("environment"):
+            header += f" — {event.context['environment'].upper()}"
+        
+        lines = [header, ""]
 
-        # Заголовок — тип + статус
+        # Основная информация: Статус и Путь
         icon = self._icon(event)
         status = event.context.get("status_code", "")
-        method = event.context.get("method", "")
+        method = event.context.get("method", "").upper()
         path = event.context.get("path", "")
 
         if status and path:
-            lines.append(f"{icon} *{status} {method} {path}*")
+            lines.append(f"{icon} *{status}* | {method} `{path}`")
         else:
             lines.append(f"{icon} *{event.type.upper()}*")
 
-        # Сообщение
-        lines.append(f"💬 {self._escape(event.message)}")
+        # Сообщение об ошибке (выделяем курсивом для читаемости)
+        lines.append(f"💬 _{self._escape(event.message)}_")
         lines.append("")
 
-        # Время
+        # Метаданные (Проект, Время) в одну строку для компактности
         dt = datetime.fromtimestamp(event.timestamp).strftime("%H:%M:%S")
-        lines.append(f"🕐 {dt}")
+        project = event.context.get("project", "unknown-app")
+        lines.append(f"📦 *Project:* `{project}`")
+        lines.append(f"🕒 *Time:* {dt}")
 
-        # Контекст — окружение и проект
-        env = event.context.get("environment", "")
-        project = event.context.get("project", "")
-        if env or project:
-            ctx_parts = [p for p in [env, project] if p]
-            lines.append(f"🌍 {' | '.join(ctx_parts)}")
-
-        # Stack trace — только первые 10 строк чтобы не спамить
+        # Stack trace: оформляем в блок кода
         if event.stack:
             stack_lines = event.stack.strip().splitlines()
+            # Берем последние 10 строк, так как там обычно самое важное
             preview = "\n".join(stack_lines[-10:])
             lines.append("")
-            lines.append(f"```\n{preview}\n```")
+            lines.append("Traceback (last 10 lines):")
+            lines.append(f"```python\n{preview}\n```")
 
         return "\n".join(lines)
 
     def _icon(self, event: OkoEvent) -> str:
-        """Иконка по типу события."""
+        """Иконка в зависимости от критичности."""
         if event.is_server_error:
-            return "🔴"
+            return "❌" # Более стандартно для критических ошибок 5xx
         if event.is_client_error:
-            return "🟡"
+            return "⚠️" # Для 4xx
         if event.type == "log":
-            return "🔵"
-        return "⚠️"
+            return "ℹ️" 
+        return "🔔"
 
     def _escape(self, text: str) -> str:
-        """Экранировать спецсимволы Markdown v2."""
-        # Только базовые символы — используем MarkdownV1 (parse_mode=Markdown)
+        """Экранирование спецсимволов для Markdown."""
+        if not text:
+            return ""
+        # В режиме Markdown V1 нужно экранировать эти символы вне блоков кода
         return text.replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
 
     # ------------------------------------------------------------------
