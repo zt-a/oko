@@ -28,52 +28,72 @@ oko.init()
 
 # ⚡ Поддержка ASGI и WSGI
 
-OKO — framework-agnostic инструмент и работает с любыми Python приложениями.
+OKO — это **framework-agnostic** инструмент, который работает с любыми Python-приложениями через стандартные интерфейсы.
 
 ---
 
-## 🟢 ASGI (async frameworks)
+## 🟢 ASGI (FastAPI, Starlette, Sanic и др.)
 
-* FastAPI
-* Starlette
-* AIOHTTP
-* Litestar
-* Sanic
+Для асинхронных фреймворков используйте `ASGIMiddleware`. Это позволит OKO перехватывать ошибки запросов, логировать HTTP-статусы и пути.
 
 ```python
-from fastapi import FastAPI
 import oko
+from fastapi import FastAPI
+
+# 1. Инициализация
+oko.init(
+    project="my-api",
+    environment="production",
+    telegram_token="YOUR_BOT_TOKEN",
+    telegram_chat_id="YOUR_CHAT_ID"
+)
 
 app = FastAPI()
-oko.init(app=app)
+
+# 2. Подключение Middleware
+app.add_middleware(oko.ASGIMiddleware)
 ```
 
 ---
 
-## 🔵 WSGI (sync frameworks)
+## 🔵 WSGI (Flask, Django и др.)
 
-* Django
-* Flask
+Для синхронных приложений используйте `WSGIMiddleware`.
 
 ```python
-from flask import Flask
 import oko
+from flask import Flask
+
+# 1. Инициализация
+oko.init(
+    project="my-flask-app",
+    telegram_token="YOUR_BOT_TOKEN",
+    telegram_chat_id="YOUR_CHAT_ID"
+)
 
 app = Flask(__name__)
-oko.init(app=app)
+
+# 2. Оборачиваем WSGI приложение
+app.wsgi_app = oko.WSGIMiddleware(app.wsgi_app)
 ```
 
 ---
 
-# 📲 Telegram уведомления
+## 📲 Telegram уведомления
+
+Вы можете настроить отправку алертов в Telegram. OKO автоматически форматирует сообщения, добавляет иконки статуса и стектрейс.
 
 ```python
 oko.init(
     telegram_token="YOUR_BOT_TOKEN",
-    telegram_chat_id="YOUR_CHAT_ID"
+    telegram_chat_id="YOUR_CHAT_ID",
+    project="city-map",     # Название проекта для заголовка
+    environment="dev",      # Окружение (prod/dev/stage)
+    capture_logs=True       # Автоматически перехватывать logging.error()
 )
 ```
 
+---
 ---
 
 # 🧠 Как это работает
