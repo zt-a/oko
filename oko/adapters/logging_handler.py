@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import logging
-import traceback
 from typing import Any, Optional
 from oko.adapters.base import BaseAdapter
-from oko.adapters.logging_handler import install_logging_handler
 
 logger = logging.getLogger("oko.adapters.logging")
 
@@ -51,7 +49,7 @@ class OkoLoggingHandler(logging.Handler):
         Преобразуем LogRecord → OkoEvent через engine.capture_log().
         """
         try:
-            message = self.format(record)
+            message = self.format(record)  # noqa: F841
 
             # Если есть exc_info — захватываем как исключение
             if record.exc_info and record.exc_info[1] is not None:
@@ -168,6 +166,7 @@ def install_logging_handler(
         logger_name or "root", logging.getLevelName(level)
     )
     return handler
+
 
 class LoggingAdapter(BaseAdapter):
     def __init__(self, engine: Any = None, level: int = logging.ERROR):

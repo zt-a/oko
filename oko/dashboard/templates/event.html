@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}OKO — Event #{{ event.id }}{% endblock %}
+
+{% block content %}
+
+<a href="/oko/" class="back-link">← Back to events</a>
+
+<!-- Header -->
+<div class="detail-header">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+    <span class="badge {{ event.type_label }}">{{ event.type }}</span>
+    {% if event.status_code %}
+      {% if event.status_code >= 500 %}
+        <span class="status-badge status-5xx">{{ event.status_code }}</span>
+      {% elif event.status_code >= 400 %}
+        <span class="status-badge status-4xx">{{ event.status_code }}</span>
+      {% endif %}
+    {% endif %}
+    {% if event.method %}
+      <span class="method">{{ event.method }}</span>
+    {% endif %}
+    {% if event.path %}
+      <span class="path">{{ event.path }}</span>
+    {% endif %}
+  </div>
+  <div class="detail-title">{{ event.message }}</div>
+  <div class="detail-meta">
+    <span>🕐 {{ event.dt }}</span>
+    {% if event.project %}<span>📁 {{ event.project }}</span>{% endif %}
+    {% if event.environment %}<span>🌍 {{ event.environment }}</span>{% endif %}
+    <span style="font-family:var(--mono); font-size:11px; color:var(--muted)">
+      fp: {{ event.fingerprint[:12] }}...
+    </span>
+  </div>
+</div>
+
+<!-- Stack Trace -->
+{% if event.has_stack %}
+<div class="section">
+  <div class="section-title">Stack Trace</div>
+  <div class="section-body" style="padding:0">
+    <pre class="stack">{{ event.stack }}</pre>
+  </div>
+</div>
+{% endif %}
+
+<!-- Context -->
+{% if event.context %}
+<div class="section">
+  <div class="section-title">Context</div>
+  <div class="section-body">
+    <div class="context-grid">
+      {% for key, val in event.context.items() %}
+        <span class="context-key">{{ key }}</span>
+        <span class="context-val">{{ val }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Navigation -->
+<div style="display:flex; gap:10px; margin-top:8px;">
+  {% if event.id > 1 %}
+  <a href="/oko/{{ event.id - 1 }}" class="page-btn">← Prev event</a>
+  {% endif %}
+  <a href="/oko/{{ event.id + 1 }}" class="page-btn">Next event →</a>
+</div>
+
+{% endblock %}

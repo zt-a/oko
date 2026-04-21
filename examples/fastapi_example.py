@@ -24,6 +24,7 @@ app = FastAPI(title="OKO FastAPI Example")
 
 # Подключаем ASGI middleware — одна строка
 app.add_middleware(oko.ASGIMiddleware)
+app.include_router(oko.dashboard_router('/oko'))
 
 
 @app.get("/")

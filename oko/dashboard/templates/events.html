@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}OKO — Events{% endblock %}
+
+{% block content %}
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card total">
+    <div class="label">Total</div>
+    <div class="value">{{ page.stats.total }}</div>
+  </div>
+  <div class="stat-card errors">
+    <div class="label">Errors</div>
+    <div class="value">{{ page.stats.errors }}</div>
+  </div>
+  <div class="stat-card http">
+    <div class="label">HTTP Errors</div>
+    <div class="value">{{ page.stats.http_errors }}</div>
+  </div>
+  <div class="stat-card logs">
+    <div class="label">Logs</div>
+    <div class="value">{{ page.stats.logs }}</div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+  <span class="filter-label">Filter:</span>
+  <a href="/oko/" class="filter-btn {% if not page.filter_type %}active{% endif %}">All</a>
+  <a href="/oko/?type=error" class="filter-btn {% if page.filter_type == 'error' %}active{% endif %}">Errors</a>
+  <a href="/oko/?type=http_error" class="filter-btn {% if page.filter_type == 'http_error' %}active{% endif %}">HTTP</a>
+  <a href="/oko/?type=log" class="filter-btn {% if page.filter_type == 'log' %}active{% endif %}">Logs</a>
+</div>
+
+<!-- Table -->
+{% if page.events %}
+<table class="events-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Type</th>
+      <th>Status</th>
+      <th>Method / Path</th>
+      <th>Message</th>
+      <th>Time</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for event in page.events %}
+    <tr>
+      <td class="ts">{{ event.id }}</td>
+      <td><span class="badge {{ event.type_label }}">{{ event.type }}</span></td>
+      <td>
+        {% if event.status_code %}
+          {% if event.status_code >= 500 %}
+            <span class="status-badge status-5xx">{{ event.status_code }}</span>
+          {% elif event.status_code >= 400 %}
+            <span class="status-badge status-4xx">{{ event.status_code }}</span>
+          {% else %}
+            <span class="status-badge status-ok">{{ event.status_code }}</span>
+          {% endif %}
+        {% else %}
+          <span class="ts">—</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if event.method %}
+          <span class="method">{{ event.method }}</span>
+        {% endif %}
+        {% if event.path %}
+          <span class="path"> {{ event.path }}</span>
+        {% endif %}
+        {% if not event.method and not event.path %}
+          <span class="ts">—</span>
+        {% endif %}
+      </td>
+      <td>
+        <a href="/oko/{{ event.id }}" class="msg" title="{{ event.message }}">
+          {{ event.message }}
+        </a>
+      </td>
+      <td class="ts">{{ event.dt }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Pagination -->
+<div class="pagination">
+  <span class="page-info">
+    Page {{ page.page_number }} of {{ page.total_pages }} &nbsp;·&nbsp; {{ page.total }} events
+  </span>
+  <a
+    href="/oko/?offset={{ page.prev_offset }}{% if page.filter_type %}&type={{ page.filter_type }}{% endif %}"
+    class="page-btn {% if not page.has_prev %}disabled{% endif %}"
+  >← Prev</a>
+  <a
+    href="/oko/?offset={{ page.next_offset }}{% if page.filter_type %}&type={{ page.filter_type }}{% endif %}"
+    class="page-btn {% if not page.has_next %}disabled{% endif %}"
+  >Next →</a>
+</div>
+
+{% else %}
+<div class="empty">
+  <div class="icon">👁</div>
+  <p>No events yet. OKO is watching.</p>
+</div>
+{% endif %}
+
+{% endblock %}

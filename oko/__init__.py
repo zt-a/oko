@@ -74,6 +74,7 @@ logger = logging.getLogger("oko")
 
 # Модульный singleton — контролируется только через init()
 _engine: Optional[OkoEngine] = None
+_storage: Optional[BaseStorage] = None
 
 
 def init(
@@ -116,7 +117,7 @@ def init(
     Returns:
         OkoEngine — запущенный движок системы
     """
-    global _engine
+    global _engine, _storage
 
     if _engine is not None and _engine.is_running:
         logger.warning("OKO already initialized — call ignored")
@@ -138,6 +139,11 @@ def init(
         batch_size=batch_size,
         poll_interval=poll_interval,
     ).build()
+
+
+    # Сохраняем storage для Dashboard
+    _storage = storage or SQLiteStorage(db_path)
+
 
     if capture_logs:
         install_logging_handler(_engine, level=log_level)
@@ -220,3 +226,36 @@ def loguru_sink(level: str = "ERROR"):
         logger.add(oko.loguru_sink(), level="ERROR")
     """
     return make_loguru_sink(engine=get_engine())
+
+
+
+# ------------------------------------------------------------------
+# Dashboard API
+# ------------------------------------------------------------------
+ 
+def get_storage() -> BaseStorage:
+    """
+    Получить текущий storage.
+ 
+    Raises:
+        RuntimeError: если oko.init() ещё не был вызван
+    """
+    if _storage is None:
+        raise RuntimeError("OKO not initialized. Call oko.init() first.")
+    return _storage
+ 
+ 
+def dashboard_router(prefix: str = "/oko"):
+    """
+    Создать FastAPI роутер для Dashboard.
+ 
+    Подключение:
+        oko.init(...)
+        app.include_router(oko.dashboard_router())
+ 
+    Args:
+        prefix: URL префикс (default: /oko)
+    """
+    from oko.dashboard.adapters.fastapi import create_dashboard_router
+    return create_dashboard_router(storage=get_storage(), prefix=prefix)
+ 
