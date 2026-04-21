@@ -154,6 +154,10 @@
       border-bottom: 1px solid var(--border);
       vertical-align: top;
     }
+    .events-table td:nth-child(5) {
+      width: 420px;
+      max-width: 420px;
+    }
     .events-table tr:last-child td { border-bottom: none; }
     .events-table tr:hover td { background: var(--bg3); }
     .events-table a { color: var(--text); text-decoration: none; }
@@ -194,8 +198,17 @@
 
     .path { font-family: var(--mono); font-size: 12px; }
     .ts   { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-    .msg  { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* .msg  { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } */
+    .msg {
+      display: inline-block;
+      max-width: 420px;
 
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      vertical-align: top;
+    }
     /* PAGINATION */
     .pagination {
       display: flex;
