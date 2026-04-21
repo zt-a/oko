@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import Optional
 
 import httpx
 
@@ -10,7 +11,6 @@ from oko.core.event import OkoEvent
 
 logger = logging.getLogger("oko.connectors.telegram")
 
-# Telegram Bot API endpoint
 _TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 
 
@@ -22,18 +22,24 @@ class TelegramConnector(BaseConnector):
         connector = TelegramConnector(
             token="123456:ABC-DEF...",
             chat_id="987654321",
+            dashboard_url="https://myapp.com",  # опционально
         )
 
     Формат сообщения:
-        👁 OKO Alert
+        👁 OKO ALERT — PRODUCTION
 
-        🔴 500 POST /api/problems
-        💬 HTTP 500 POST /api/problems
+        ❌ *500* | POST `/api/problems`
+        💬 _HTTP 500 POST /api/problems_
 
-        🕐 14:23:05
-        🌍 production | citymap
+        📦 *Project:* `citymap`
+        🕒 *Time:* 14:23:05
 
-        [stack trace если есть — первые 10 строк]
+        🔗 http://myapp.com/oko/42   ← ссылка на dashboard (если задан)
+
+        Traceback (last 10 lines):
+        ```python
+        ...
+        ```
     """
 
     def __init__(
@@ -41,16 +47,21 @@ class TelegramConnector(BaseConnector):
         token: str,
         chat_id: str,
         timeout: float = 10.0,
+        dashboard_url: Optional[str] = None,
     ) -> None:
         """
         Args:
-            token:   токен Telegram бота (от @BotFather)
-            chat_id: ID чата/пользователя куда слать уведомления
-            timeout: таймаут HTTP запроса в секундах
+            token:          токен Telegram бота (от @BotFather)
+            chat_id:        ID чата/пользователя куда слать уведомления
+            timeout:        таймаут HTTP запроса в секундах
+            dashboard_url:  base URL приложения для ссылок на dashboard.
+                            Например: "http://localhost:8000" или "https://myapp.com"
+                            Если не задан — ссылки в сообщениях не будет.
         """
         self._token = token
         self._chat_id = chat_id
         self._timeout = timeout
+        self._dashboard_url = dashboard_url.rstrip("/") if dashboard_url else None
         self._url = _TELEGRAM_API.format(token=token)
 
     # ------------------------------------------------------------------
@@ -66,14 +77,12 @@ class TelegramConnector(BaseConnector):
 
     def _format(self, event: OkoEvent) -> str:
         """Сформировать красиво отформатированное сообщение для Telegram."""
-        # Заголовок с типом события
-        header = f"👁 *OKO ALERT*"
+        header = "👁 *OKO ALERT*"
         if event.context.get("environment"):
             header += f" — {event.context['environment'].upper()}"
-        
+
         lines = [header, ""]
 
-        # Основная информация: Статус и Путь
         icon = self._icon(event)
         status = event.context.get("status_code", "")
         method = event.context.get("method", "").upper()
@@ -84,20 +93,29 @@ class TelegramConnector(BaseConnector):
         else:
             lines.append(f"{icon} *{event.type.upper()}*")
 
-        # Сообщение об ошибке (выделяем курсивом для читаемости)
         lines.append(f"💬 _{self._escape(event.message)}_")
         lines.append("")
 
-        # Метаданные (Проект, Время) в одну строку для компактности
         dt = datetime.fromtimestamp(event.timestamp).strftime("%H:%M:%S")
         project = event.context.get("project", "unknown-app")
         lines.append(f"📦 *Project:* `{project}`")
         lines.append(f"🕒 *Time:* {dt}")
 
-        # Stack trace: оформляем в блок кода
+        # Ссылка на dashboard event
+        event_id = event.context.get("id")
+        if self._dashboard_url and event_id is not None:
+            # Заменяем 'localhost' на '127.0.0.1' для стабильности ссылок в Telegram
+            base_url = self._dashboard_url.replace("localhost", "127.0.0.1")
+            url = f"{base_url}/oko/{event_id}"
+            
+            # Используем явное оформление Markdown [Текст](URL)
+            # Важно: саму переменную url НЕ пропускаем через self._escape, 
+            # чтобы не сломать протокол http:// и точки
+            lines.append(f"🔗 [{url}]({url})")
+
+        # Stack trace
         if event.stack:
             stack_lines = event.stack.strip().splitlines()
-            # Берем последние 10 строк, так как там обычно самое важное
             preview = "\n".join(stack_lines[-10:])
             lines.append("")
             lines.append("Traceback (last 10 lines):")
@@ -106,20 +124,17 @@ class TelegramConnector(BaseConnector):
         return "\n".join(lines)
 
     def _icon(self, event: OkoEvent) -> str:
-        """Иконка в зависимости от критичности."""
         if event.is_server_error:
-            return "❌" # Более стандартно для критических ошибок 5xx
+            return "❌"
         if event.is_client_error:
-            return "⚠️" # Для 4xx
+            return "⚠️"
         if event.type == "log":
-            return "ℹ️" 
+            return "ℹ️"
         return "🔔"
 
     def _escape(self, text: str) -> str:
-        """Экранирование спецсимволов для Markdown."""
         if not text:
             return ""
-        # В режиме Markdown V1 нужно экранировать эти символы вне блоков кода
         return text.replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
 
     # ------------------------------------------------------------------
@@ -127,7 +142,6 @@ class TelegramConnector(BaseConnector):
     # ------------------------------------------------------------------
 
     async def _send_message(self, text: str) -> None:
-        """Отправить сообщение через Telegram Bot API."""
         payload = {
             "chat_id": self._chat_id,
             "text": text,
@@ -152,8 +166,5 @@ class TelegramConnector(BaseConnector):
         except Exception as e:
             logger.exception("Telegram unexpected error: %s", e)
 
-    # ------------------------------------------------------------------
-
     def __repr__(self) -> str:
-        # Не логируем токен
-        return f"TelegramConnector(chat_id={self._chat_id!r})"
+        return f"TelegramConnector(chat_id={self._chat_id!r}, dashboard_url={self._dashboard_url!r})"

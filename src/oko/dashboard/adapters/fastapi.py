@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
 from jinja2 import Environment, FileSystemLoader
 
 from oko.dashboard.core.repository import DashboardRepository
@@ -17,7 +15,7 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 def create_dashboard_router(
     storage: BaseStorage,
     prefix: str = "/oko",
-) -> APIRouter:
+) -> Any:
     """
     Создать FastAPI роутер для Dashboard.
 
@@ -41,6 +39,17 @@ def create_dashboard_router(
         GET /oko/          — список событий
         GET /oko/{id}      — детальный просмотр
     """
+    # ЛОКАЛЬНЫЙ ИМПОРТ: 
+    # Python попытается найти fastapi только в тот момент, 
+    # когда пользователь реально вызовет эту функцию.
+    try:
+        from fastapi import APIRouter, HTTPException
+        from fastapi.responses import HTMLResponse
+    except ImportError:
+        raise ImportError(
+            "FastAPI is not installed. To use the dashboard, "
+            "install it with: pip install fastapi jinja2"
+        )
     router = APIRouter(prefix=prefix, tags=["oko-dashboard"])
 
     repo    = DashboardRepository(storage)

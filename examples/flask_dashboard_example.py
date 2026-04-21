@@ -1,13 +1,13 @@
 """
-OKO + Flask пример
+OKO + Flask Dashboard пример
 
 Запуск:
     pip install flask
-    python examples/flask_example.py
+    python examples/flask_dashboard_example.py
 """
 
 import oko
-from flask import Flask, jsonify
+from flask import Flask
 
 # --- Инициализация OKO ---
 # Примечание: telegram_token и telegram_chat_id нужно получить у @BotFather и @userinfobot
@@ -16,8 +16,7 @@ oko.init(
     telegram_chat_id="...",  # Замените на ваш chat_id от @userinfobot
     project="myapp",
     environment="development",
-    silence=0,
-    capture_logs=True,
+    db_path="oko.db",
 )
 
 # --- Приложение ---
@@ -26,28 +25,31 @@ app = Flask(__name__)
 # Подключаем WSGI middleware — одна строка
 app.wsgi_app = oko.WSGIMiddleware(app.wsgi_app)
 
+# Подключаем Dashboard (Flask Blueprint)
+app.register_blueprint(oko.dashboard_blueprint(url_prefix="/oko"))
 
-@app.get("/")
+
+@app.route("/")
 def root():
-    return jsonify({"status": "ok", "message": "OKO is watching 👁️"})
+    return {"status": "ok", "message": "OKO is watching 👁️"}
 
 
-@app.get("/error")
+@app.route("/error")
 def trigger_500():
     """Эндпоинт который падает — OKO должен поймать."""
     raise ValueError("Something went wrong")
 
 
-@app.get("/not-found")
+@app.route("/not-found")
 def trigger_404():
     """404 не мониторится по умолчанию."""
-    return jsonify({"detail": "Not found"}), 404
+    return {"detail": "Not found"}, 404
 
 
-@app.get("/bad-request")
+@app.route("/bad-request")
 def trigger_400():
     """400 мониторится — OKO уведомит."""
-    return jsonify({"detail": "Bad request"}), 400
+    return {"detail": "Bad request"}, 400
 
 
 @app.post("/capture")
@@ -56,7 +58,7 @@ def manual_capture():
     from flask import request
     message = request.args.get("message", "test")
     oko.capture_log(message, level="warning", context={"source": "manual"})
-    return jsonify({"captured": message})
+    return {"captured": message}
 
 
 if __name__ == "__main__":

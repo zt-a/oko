@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
+.python-version
+
 # C extensions
 *.so
 
@@ -233,3 +236,6 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+# Environment variables with secrets
+.env

@@ -8,9 +8,10 @@ from oko.adapters.logging_handler import install_logging_handler
 logging.basicConfig(level=logging.INFO)
 
 # 2. Инициализация OKO
+# Примечание: telegram_token и telegram_chat_id нужно получить у @BotFather и @userinfobot
 engine = oko.init(
-    telegram_token="8642162012:AAHLsMcVsM-MHiPB025jxhENrgb5i2uxcHY",
-    telegram_chat_id="7931884852",
+    telegram_token="...",  # Замените на ваш токен от @BotFather
+    telegram_chat_id="...",  # Замените на ваш chat_id от @userinfobot
     project="city-problem-map",
     environment="development",
     capture_logs=False, # Отключаем внутренний авто-захват, так как ставим хендлер вручную ниже

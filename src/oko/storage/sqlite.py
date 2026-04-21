@@ -44,6 +44,8 @@ LIMIT ? OFFSET ?
 _COUNT = "SELECT COUNT(*) FROM oko_events {where}"
 
 
+_CLEANUP = "DELETE FROM oko_events WHERE timestamp < ?"
+
 class SQLiteStorage(BaseStorage):
     """
     Хранилище событий на базе SQLite.
@@ -62,14 +64,16 @@ class SQLiteStorage(BaseStorage):
         storage = SQLiteStorage(":memory:") # in-memory для тестов
     """
 
-    def __init__(self, db_path: str = "oko.db") -> None:
+    def __init__(self, db_path: str = "oko.db", cleanup_days: int = 30) -> None:
         self._db_path = db_path
         self._lock = threading.Lock()
+        self._cleanup_days = cleanup_days
         # in-memory БД нельзя переоткрывать — держим одно соединение
         self._persistent_conn: Optional[sqlite3.Connection] = None
         if db_path == ":memory:":
             self._persistent_conn = self._open_conn()
         self._init_db()
+        
 
     # ------------------------------------------------------------------
     # Соединение
@@ -102,6 +106,12 @@ class SQLiteStorage(BaseStorage):
         for idx in _CREATE_INDEXES:
             conn.execute(idx)
         conn.commit()
+        # Вызываем очистку сразу после инициализации
+        try:
+            self.cleanup(days=self._cleanup_days)
+        except Exception as e:
+            logger.error("Failed to cleanup old events: %s", e)
+
         logger.debug("SQLiteStorage initialized: %s", self._db_path)
 
     # ------------------------------------------------------------------
@@ -136,6 +146,49 @@ class SQLiteStorage(BaseStorage):
             conn.commit()
 
         logger.debug("SQLiteStorage saved batch of %d events", len(rows))
+
+        # Раз в 100 сохранений запускаем чистку
+        import random
+        if random.random() < 0.01:
+            try:
+                self.cleanup(days=self._cleanup_days)
+            except Exception as e:
+                logger.error("Failed to cleanup old events: %s", e)
+
+    def save_batch_returning_ids(self, events: List[Any]) -> List[int]:
+        """
+        Сохранить пачку событий и вернуть их id из БД.
+
+        Используется в output_handler чтобы обогатить события
+        database id перед отправкой в Connectors (для ссылок на dashboard).
+        """
+        if not events:
+            return []
+
+        rows = [
+            (
+                e.type,
+                e.message,
+                e.stack,
+                json.dumps(e.context, ensure_ascii=False),
+                e.timestamp,
+                e.fingerprint,
+            )
+            for e in events
+        ]
+
+        with self._lock:
+            conn = self._connect()
+            cursor = conn.cursor()
+            # Вставляем по одному чтобы получить lastrowid каждого
+            ids = []
+            for row in rows:
+                cursor.execute(_INSERT, row)
+                ids.append(cursor.lastrowid)
+            conn.commit()
+
+        logger.debug("SQLiteStorage saved batch of %d events, ids=%s", len(rows), ids)
+        return ids
 
     # ------------------------------------------------------------------
     # Read (Observation System → Dashboard)
@@ -173,6 +226,33 @@ class SQLiteStorage(BaseStorage):
         conn = self._connect()
         row = conn.execute(query, (event_id, 1, 0)).fetchone()
         return self._row_to_dict(row) if row else None
+
+
+    # ------------------------------------------------------------------
+    # Очистка
+    # ------------------------------------------------------------------
+
+    def cleanup(self, days: int = 30) -> int:
+        """
+        Удалить события старше N дней.
+        Возвращает количество удаленных записей.
+        """
+        # Вычисляем порог времени (текущий timestamp - секунды за N дней)
+        import time
+        threshold = time.time() - (days * 86400)
+
+        with self._lock:
+            conn = self._connect()
+            cursor = conn.execute(_CLEANUP, (threshold,))
+            deleted_count = cursor.rowcount
+            conn.commit()
+            
+        if deleted_count > 0:
+            logger.info("SQLiteStorage cleanup: removed %d events older than %d days", deleted_count, days)
+        
+        return deleted_count
+
+
 
     # ------------------------------------------------------------------
     # Утилиты

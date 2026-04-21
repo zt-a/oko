@@ -62,6 +62,8 @@ __all__ = [
     "WSGIMiddleware",
     "OkoLoggingHandler",
     "install_logging_handler",
+    "dashboard_router",
+    "dashboard_blueprint",
     "OkoEvent",
     "BaseConnector",
     "BaseStorage",
@@ -80,8 +82,10 @@ _storage: Optional[BaseStorage] = None
 def init(
     telegram_token: Optional[str] = None,
     telegram_chat_id: Optional[str] = None,
+    dashboard_url: Optional[str] = None,
     storage: Optional[BaseStorage] = None,
     db_path: str = "oko.db",
+    retention_days: int = 7,
     connector: Optional[BaseConnector] = None,
     extra_connectors: Optional[List[BaseConnector]] = None,
     silence: float = 900.0,
@@ -126,8 +130,10 @@ def init(
     _engine = OkoBuilder(
         telegram_token=telegram_token,
         telegram_chat_id=telegram_chat_id,
+        dashboard_url=dashboard_url,
         storage=storage,
         db_path=db_path,
+        retention_days=retention_days,
         connector=connector,
         extra_connectors=extra_connectors,
         silence=silence,
@@ -248,14 +254,29 @@ def get_storage() -> BaseStorage:
 def dashboard_router(prefix: str = "/oko"):
     """
     Создать FastAPI роутер для Dashboard.
- 
+  
     Подключение:
         oko.init(...)
         app.include_router(oko.dashboard_router())
- 
+  
     Args:
         prefix: URL префикс (default: /oko)
     """
     from oko.dashboard.adapters.fastapi import create_dashboard_router
     return create_dashboard_router(storage=get_storage(), prefix=prefix)
+
+
+def dashboard_blueprint(url_prefix: str = "/oko"):
+    """
+    Создать Flask Blueprint для Dashboard.
+  
+    Подключение:
+        oko.init(...)
+        app.register_blueprint(oko.dashboard_blueprint())
+  
+    Args:
+        url_prefix: URL префикс (default: /oko)
+    """
+    from oko.dashboard.adapters.flask import create_dashboard_blueprint
+    return create_dashboard_blueprint(storage=get_storage(), url_prefix=url_prefix)
  

@@ -4,6 +4,8 @@ OKO + FastAPI пример
 Запуск:
     pip install fastapi uvicorn
     uvicorn examples.fastapi_example:app --reload
+
+Примечание: telegram_token и telegram_chat_id нужно получить у @BotFather и @userinfobot
 """
 
 import oko
@@ -11,11 +13,12 @@ from fastapi import FastAPI
 
 # --- Инициализация OKO ---
 oko.init(
-    telegram_token="8642162012:AAHLsMcVsM-MHiPB025jxhENrgb5i2uxcHY",
-    telegram_chat_id="7931884852",
+    telegram_token="...",  # Замените на ваш токен от @BotFather
+    telegram_chat_id="...",  # Замените на ваш chat_id от @userinfobot
+    dashboard_url='http://localhost:8000',
     project="myapp",
     environment="development",
-    silence=0,
+    silence=100,
     capture_logs=True,
 )
 

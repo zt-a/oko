@@ -44,9 +44,12 @@ class OkoBuilder:
         # Telegram
         telegram_token: Optional[str] = None,
         telegram_chat_id: Optional[str] = None,
+        # Dashboard
+        dashboard_url: Optional[str] = None,
         # Storage
         storage: Optional[BaseStorage] = None,
         db_path: str = "oko.db",
+        retention_days: int = 7,
         # Connectors
         connector: Optional[BaseConnector] = None,
         extra_connectors: Optional[List[BaseConnector]] = None,
@@ -66,8 +69,11 @@ class OkoBuilder:
         self._telegram_token = telegram_token
         self._telegram_chat_id = telegram_chat_id
 
+        # Dashboard
+        self._dashboard_url = dashboard_url
+
         # Storage — кастомный или SQLite по умолчанию
-        self._storage = storage or SQLiteStorage(db_path)
+        self._storage = storage or SQLiteStorage(db_path, retention_days)
 
         # Connectors
         self._connector = connector
@@ -132,6 +138,7 @@ class OkoBuilder:
             telegram = self._connector or TelegramConnector(
                 token=self._telegram_token,
                 chat_id=self._telegram_chat_id,
+                dashboard_url=self._dashboard_url
             )
             connectors.append(telegram)
         elif self._connector:
@@ -162,8 +169,14 @@ class OkoBuilder:
         storage = self._storage
 
         def output_handler(events: List[OkoEvent]) -> None:
-            # 1. Storage — синхронный batch insert
-            storage.save_batch(events)
+            # 1. Storage — сохраняем и получаем id из БД
+            if hasattr(storage, "save_batch_returning_ids"):
+                ids = storage.save_batch_returning_ids(events)
+                # Обогащаем события database id для ссылок на dashboard
+                for event, db_id in zip(events, ids):
+                    event.context["id"] = db_id
+            else:
+                storage.save_batch(events)
 
             # 2. Connectors — async отправка в отдельном потоке
             if connectors:
