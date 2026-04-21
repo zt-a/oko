@@ -3,13 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Any
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, PackageLoader
 
 from oko.dashboard.core.repository import DashboardRepository
 from oko.dashboard.core.service import DashboardService
 from oko.storage.base import BaseStorage
-
-TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
 
 def create_dashboard_router(
@@ -54,14 +52,14 @@ def create_dashboard_router(
 
     repo    = DashboardRepository(storage)
     service = DashboardService(repo)
-    env     = Environment(
-        loader=FileSystemLoader(str(TEMPLATES_DIR)),
+    env = Environment(
+        loader=PackageLoader("oko.dashboard", "templates"),
         autoescape=True,
     )
 
     # ------------------------------------------------------------------
 
-    @router.get("/", response_class=HTMLResponse)
+    @router.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def events_list(
         type: Optional[str] = None,
         limit: int = 50,
@@ -76,7 +74,7 @@ def create_dashboard_router(
         html = env.get_template("events.html").render(page=page)
         return HTMLResponse(html)
 
-    @router.get("/{event_id}", response_class=HTMLResponse)
+    @router.get("/{event_id}", response_class=HTMLResponse, include_in_schema=False)
     async def event_detail(event_id: int) -> HTMLResponse:
         """Детальный просмотр одного события."""
         event = service.get_event_detail(event_id)
