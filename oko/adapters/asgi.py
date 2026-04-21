@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Callable, FrozenSet, Optional, Set
+from oko.adapters.base import BaseAdapter
 
 logger = logging.getLogger("oko.adapters.asgi")
 
@@ -138,3 +139,13 @@ class OkoASGIMiddleware:
                 "utf-8", errors="replace"
             )
         return context
+
+
+class ASGIAdapter(BaseAdapter):
+    def install(self, app: Any) -> None:
+        # Если это FastAPI/Starlette, у них есть метод add_middleware
+        if hasattr(app, "add_middleware"):
+            app.add_middleware(OkoASGIMiddleware, engine=self.engine)
+        else:
+            # Если это чистый ASGI, можно просто обернуть (но это реже)
+            logger.warning("ASGI app doesn't support add_middleware. Wrap it manually.")

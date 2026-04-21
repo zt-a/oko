@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Callable, FrozenSet, Iterable, Optional, Set
+from oko.adapters.base import BaseAdapter
 
 logger = logging.getLogger("oko.adapters.wsgi")
 
@@ -129,3 +130,13 @@ class OkoWSGIMiddleware:
         if user_agent:
             context["user_agent"] = user_agent
         return context
+
+
+class WSGIAdapter(BaseAdapter):
+    def install(self, app: Any) -> None:
+        # Для Flask это app.wsgi_app
+        if hasattr(app, "wsgi_app"):
+            app.wsgi_app = OkoWSGIMiddleware(app.wsgi_app, engine=self.engine)
+        else:
+            # Для Django или других
+            app = OkoWSGIMiddleware(app, engine=self.engine)

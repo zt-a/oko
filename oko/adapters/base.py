@@ -26,6 +26,16 @@ class BaseAdapter(ABC):
                 # подключить middleware к app
                 pass
     """
+    def __init__(self, engine: Any = None):
+        self._explicit_engine = engine
+
+    @property
+    def engine(self) -> Any:
+        """Ленивое получение движка, если он не передан явно"""
+        if self._explicit_engine is not None:
+            return self._explicit_engine
+        import oko
+        return oko.get_engine()
 
     @abstractmethod
     def install(self, app: Any, engine: Any) -> None:

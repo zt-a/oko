@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import traceback
 from typing import Any, Optional
+from oko.adapters.base import BaseAdapter
+from oko.adapters.logging_handler import install_logging_handler
 
 logger = logging.getLogger("oko.adapters.logging")
 
@@ -166,3 +168,12 @@ def install_logging_handler(
         logger_name or "root", logging.getLevelName(level)
     )
     return handler
+
+class LoggingAdapter(BaseAdapter):
+    def __init__(self, engine: Any = None, level: int = logging.ERROR):
+        super().__init__(engine)
+        self.level = level
+
+    def install(self, app: Any = None) -> None:
+        # Здесь 'app' может быть именем логгера. По умолчанию — root.
+        install_logging_handler(engine=self.engine, level=self.level, logger_name=app)
