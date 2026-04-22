@@ -12,7 +12,7 @@ OKO — лёгкая библиотека для отслеживания оши
 # 🚀 Быстрый старт
 
 ```bash
-pip install oko
+pip install oko-py
 ```
 
 ```python
